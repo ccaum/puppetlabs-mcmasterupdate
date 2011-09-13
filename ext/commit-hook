@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+
+begin
+  require 'mcollective'
+rescue LoadError => e
+  puts "Please install MCollective on subversion server"
+end
+
+include MCollective::RPC
+
+def update_master(environment)
+  #Activate our puppet agent
+  mc = rpcclient('puppetupdate')
+  mc.class_filter /puppetmaster/
+  mc.update :environment => environment, :rcs => 'svn'
+end
+
+GOLD_REGEX     = /puppet\/tags\/GOLD/
+TRUNK_REGEX    = /puppet\/trunk/
+MANIFEST_REGEX = /\.pp$/
+
+class CommitCmd
+  attr_reader :status, :output, :cmd
+
+  def initialize(cmd)
+    @cmd    = cmd
+    @status = nil
+  end
+
+  def run
+    @output = `#{@cmd} 2>&1`
+    @status = $?
+  end
+end
+
+repos = ARGV[0]
+txn   = ARGV[1]
+
+if repos.nil? or txn.nil?
+  puts "Invalid commands"
+  exit(1)
+end
+
+filelistcmd = CommitCmd.new("/usr/bin/svnlook changed -t #{txn} #{repos}")
+filelistcmd.run
+
+if filelistcmd.status.exitstatus != 0
+  puts "Error getting change list:"
+  puts filelistcmd.output
+  exit(1)
+end
+
+errors = []
+
+workdir = "/tmp/puppet.commit.#{$$}"
+Dir.mkdir(workdir)
+ENV["HOME"] = workdir
+ENV["RUBYLIB"] = "/path/to/libdir"
+
+filestocleanup = []
+filelistcmd.output.split("\n").each do |l|
+  op = l[0..3].strip
+  f  = l[4..-1].strip
+  next if not ["U", "A"].include?(op)
+  next if TRUNK_REGEX    !~ l
+  next if MANIFEST_REGEX !~ l
+  wf = f.gsub("/", ".")
+  filestocleanup << wf
+  filecatcmd = CommitCmd.new("/usr/bin/svnlook cat -t #{txn} #{repos} #{f} > #{workdir}/#{wf}")
+  filecatcmd.run
+  if filecatcmd.status.exitstatus != 0
+    errors << "Error reading #{f}:\n  #{filecatcmd.output.gsub("\n", "\n  ")}"
+    next
+  end
+
+  puppetcmd = CommitCmd.new("/usr/scea/puppet/bin/puppet --noop --color=false --parseonly --ignoreimport #{workdir}/#{wf}")
+  puppetcmd.run
+  if puppetcmd.status.exitstatus != 0
+    errors << "Puppet errors in #{f}:\n  #{puppetcmd.output.gsub("\n", "\n  ")}"
+    next
+  end
+
+end
+
+ # cleanup
+ begin
+   filestocleanup.each do |f|
+     File.unlink("#{workdir}/#{f}")
+   end
+   Dir.rmdir(workdir)
+ rescue StandardError => e
+   puts "Error cleaning up: #{e}"
+end
+
+# print errors
+if not errors.empty?
+  puts
+  errors.each do |e|
+    puts e
+  end
+  exit(errors.length)
+end
+
+#Update puppet masters if necessary
+env_array = Array.new
+filelistcmd.output.split("\n").each do |l|
+  if (TRUNK_EXP =~ l) and (! env_array.include? 'development')
+    env_array << 'development'
+  end
+
+  if (GOLD_EXP =~ l) and (! env_array.include? 'production')
+    env_array << 'production'
+  end
+
+  env_array.each { |env| update_master env }
+end
+
+exit(0)
