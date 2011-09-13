@@ -12,7 +12,7 @@ action update, :description => "Update Environment on puppet master" do
           :description => "Revision Control System (git or svn)",
           :type        => :string,
           :validation  => /^svn$|^git$/,
-          :option      => false,
+          :optional    => false,
           :maxlength   => 90
 
     input :environment,
@@ -22,9 +22,5 @@ action update, :description => "Update Environment on puppet master" do
           :validation  => '.',
           :optional    => false,
           :maxlength   => 90
-
-    output :output,
-          :description => "output",
-          :display_as  => "Output"
 
 end 

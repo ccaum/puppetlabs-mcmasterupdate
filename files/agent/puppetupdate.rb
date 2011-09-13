@@ -15,6 +15,9 @@ module MCollective
               :timeout     => 10
 
             action 'update' do 
+              validate :rcs, :shellsafe
+              validate :environment, :shellsafe
+
               begin
                 require 'puppet'
               rescue LoadError => e
@@ -33,7 +36,7 @@ module MCollective
               Puppet[:config] = '/etc/puppet/puppet.conf'
               Puppet.parse_config
               Puppet::Node::Environment.new(request[:environment])[:modulepath].split(':').each do |path|
-                run "#{command} #{path}"
+                run "#{command} #{path}", :stderr => :err, :stdou => :out, :chomp => true
               end
             end
         end
