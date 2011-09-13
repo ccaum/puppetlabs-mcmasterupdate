@@ -7,18 +7,18 @@ module MCollective
         # Released under the terms of the GPL, same as Puppet
         class Puppetupdate<RPC::Agent
             metadata :name => "Puppet Update",
-              :description => "Agent To Update SVN checkouts on puppet masters",
+              :description => "Agent To Update module checkouts on puppet masters",
               :author      => "Carl Caum",
               :license     => "GPLv2",
               :version     => "1.0",
-              :url         => "http://puppetlabs.com",
+              :url         => "http://github.com/puppetlabs/puppetlabs-mcmasterupdates",
               :timeout     => 10
 
             action 'update' do 
               begin
                 require 'puppet'
               rescue LoadError => e
-                reply[:error] = "Cannot load Puppet"
+                reply.fail! "Cannot load Puppet"
               end
               
               case request[:rcs]
@@ -27,7 +27,7 @@ module MCollective
               when 'git'
                 command = "git pull"
               else
-                reply[:error] = "Unknown RCS #{request[:rcs]}"
+                reply.fail! "Unknown RCS #{request[:rcs]}"
               end
 
               Puppet[:config] = '/etc/puppet/puppet.conf'
