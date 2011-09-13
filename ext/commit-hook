@@ -1,5 +1,10 @@
 #!/usr/bin/env ruby
 
+ENVIRONMENTS = {
+  'development' => /puppet\/trunk/,
+  'production'  => /puppet\/tags\/GOLD/
+}
+
 begin
   require 'mcollective'
 rescue LoadError => e
@@ -15,8 +20,8 @@ def update_master(environment)
   mc.update :environment => environment, :rcs => 'svn'
 end
 
-GOLD_REGEX     = /puppet\/tags\/GOLD/
-TRUNK_REGEX    = /puppet\/trunk/
+#GOLD_REGEX     = /puppet\/tags\/GOLD/
+#TRUNK_REGEX    = /puppet\/trunk/
 MANIFEST_REGEX = /\.pp$/
 
 class CommitCmd
@@ -62,7 +67,10 @@ filelistcmd.output.split("\n").each do |l|
   op = l[0..3].strip
   f  = l[4..-1].strip
   next if not ["U", "A"].include?(op)
-  next if TRUNK_REGEX    !~ l
+
+  #Go to next line if we don't match any environment regex
+  next unless ENVIRONMENTS.map { |env,regex| regex =~ l ? true : false }.include? true
+
   next if MANIFEST_REGEX !~ l
   wf = f.gsub("/", ".")
   filestocleanup << wf
@@ -104,12 +112,10 @@ end
 #Update puppet masters if necessary
 env_array = Array.new
 filelistcmd.output.split("\n").each do |l|
-  if (TRUNK_EXP =~ l) and (! env_array.include? 'development')
-    env_array << 'development'
-  end
-
-  if (GOLD_EXP =~ l) and (! env_array.include? 'production')
-    env_array << 'production'
+  ENVIRONMENTS.each do |env,regex|
+    if ( regex =~ l) and (! env_array.include?(env) )
+      env_array << env
+    end
   end
 
   env_array.each { |env| update_master env }
