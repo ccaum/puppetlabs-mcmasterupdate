@@ -36,7 +36,7 @@ module MCollective
               Puppet[:config] = '/etc/puppet/puppet.conf'
               Puppet.parse_config
               Puppet::Node::Environment.new(request[:environment])[:modulepath].split(':').each do |path|
-                run "#{command} #{path}", :stderr => :err, :stdou => :out, :chomp => true
+                run "#{command} #{path}", :stderr => :err, :stdout => :out, :chomp => true
               end
             end
         end
