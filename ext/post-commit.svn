@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+
+ENVIRONMENTS = {
+  'development' => /puppet\/trunk/,
+  'production'  => /puppet\/tags\/GOLD/
+}
+
+begin
+  require 'mcollective'
+rescue LoadError => e
+  puts "Please install MCollective on subversion server"
+  exit(1)
+end
+
+include MCollective::RPC
+
+def update_master(environment)
+  #Activate our puppet agent
+  mc = rpcclient('puppetupdate')
+  mc.update :environment => environment, :rcs => 'svn'
+end
+
+MANIFEST_REGEX = /\.pp$/
+
+class Commitcmd
+  attr_reader :status, :output, :cmd
+
+  def initialize(cmd)
+    @cmd    = cmd
+    @status = nil
+  end
+
+  def run
+    @output = `#{@cmd} 2>&1`
+    @status = $?
+  end
+end
+
+repos = ARGV[0]
+txn   = ARGV[1]
+
+#if repos.nil? or txn.nil?
+  #puts "invalid commands"
+  #exit(1)
+#end
+
+filelistcmd = Commitcmd.new("/usr/bin/svnlook changed -t #{txn} #{repos}")
+filelistcmd.run
+
+if filelistcmd.status.exitstatus != 0
+  puts "error getting change list:"
+  puts filelistcmd.output
+  exit(1)
+end
+
+#Update puppet masters if necessary
+env_array = Array.new
+filelistcmd.output.split("\n").each do |l|
+  ENVIRONMENTS.each do |env,regex|
+    if ( regex =~ l) and (! env_array.include?(env) )
+      env_array << env
+    end
+  end
+
+  env_array.each { |env| update_master env }
+end
+
+exit(0)
