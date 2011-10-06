@@ -7,9 +7,9 @@ metadata    :name        => "Puppet Update",
             :timeout     => 10
 
 action update, :description => "Update Environment on puppet master" do
-    input :rcs,
-          :prompt      => "RCS",
-          :description => "Revision Control System (git or svn)",
+    input :vcs,
+          :prompt      => "VCS",
+          :description => "Version Control System (git or svn)",
           :type        => :string,
           :validation  => /^svn$|^git$/,
           :optional    => false,

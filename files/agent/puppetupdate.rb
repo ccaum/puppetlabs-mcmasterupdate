@@ -15,7 +15,7 @@ module MCollective
               :timeout     => 10
 
             action 'update' do 
-              validate :rcs, :shellsafe
+              validate :vcs, :shellsafe
               validate :environment, :shellsafe
 
               begin
@@ -24,13 +24,13 @@ module MCollective
                 reply.fail! "Cannot load Puppet"
               end
               
-              case request[:rcs]
+              case request[:vcs]
               when 'svn'
                 command = "svn update"
               when 'git'
                 command = "git pull"
               else
-                reply.fail! "Unknown RCS #{request[:rcs]}"
+                reply.fail! "Unknown VCS #{request[:vcs]}"
               end
 
               Puppet[:config] = '/etc/puppet/puppet.conf'
