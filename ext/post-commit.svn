@@ -17,7 +17,7 @@ include MCollective::RPC
 def update_master(environment)
   #Activate our puppet agent
   mc = rpcclient('puppetupdate')
-  mc.update :environment => environment, :rcs => 'svn'
+  mc.update :environment => environment, :vcs => 'svn'
 end
 
 MANIFEST_REGEX = /\.pp$/
